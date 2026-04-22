@@ -456,25 +456,30 @@ if(foodParam){
   banner.textContent='⏳ Commande en préparation...';
   document.body.insertBefore(banner,document.body.firstChild);
   
+  function jsonpCheck(url,cb){
+    var n='cb_'+Date.now()+'_'+Math.floor(Math.random()*10000);
+    window[n]=function(d){delete window[n];var s=document.getElementById(n);if(s)s.remove();cb(d);};
+    var s=document.createElement('script');s.id=n;
+    s.src=url+(url.indexOf('?')>=0?'&':'?')+'callback='+n;
+    s.onerror=function(){delete window[n];s.remove();cb(null);};
+    document.body.appendChild(s);
+  }
+  
   function checkOrder(){
     if(orderReady||pollCount>=MAX_POLLS) return;
     pollCount++;
     
-    fetch(ORDERS_API+'?action=status&phone='+encodeURIComponent(phone),{method:'GET'})
-      .then(function(r){return r.json();})
-      .then(function(data){
-        if(data.success && data.ready){
-          orderReady=true;
-          banner.style.background='linear-gradient(135deg,rgba(0,184,148,0.2),rgba(78,205,196,0.15))';
-          banner.style.color='#00B894';
-          banner.style.borderColor='rgba(0,184,148,0.3)';
-          banner.textContent='✅ Ta commande est prête !';
-          overlay.style.display='flex';
-          // Vibrate if supported
-          if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
-        }
-      })
-      .catch(function(){});
+    jsonpCheck(ORDERS_API+'?action=status&phone='+encodeURIComponent(phone),function(data){
+      if(data && data.success && data.ready){
+        orderReady=true;
+        banner.style.background='linear-gradient(135deg,rgba(0,184,148,0.2),rgba(78,205,196,0.15))';
+        banner.style.color='#00B894';
+        banner.style.borderColor='rgba(0,184,148,0.3)';
+        banner.textContent='✅ Ta commande est prête !';
+        overlay.style.display='flex';
+        if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
+      }
+    });
   }
   
   // Poll every 10 seconds
