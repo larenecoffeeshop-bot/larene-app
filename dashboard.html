@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0c0c0c">
+<title>Commandes — L'Arène</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0c;--bg2:#161622;--accent:#4ECDC4;--text1:#fff;--text2:#b0b0c0;--text3:#666680}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text1);min-height:100dvh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.header h1{font-family:'Oswald',sans-serif;font-size:22px;letter-spacing:0.05em}
+.header .status{font-size:12px;color:var(--accent);display:flex;align-items:center;gap:6px}
+.header .status .dot{width:8px;height:8px;border-radius:50%;background:#00B894;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.orders{padding:12px}
+.order-card{background:var(--bg2);border-radius:16px;padding:16px;margin-bottom:10px;border-left:4px solid #FF9F43;transition:all 0.3s}
+.order-card.done{border-left-color:#00B894;opacity:0.5}
+.order-card.new{animation:slideIn 0.4s ease,glow 1s ease}
+@keyframes slideIn{from{transform:translateY(-20px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes glow{0%{box-shadow:0 0 20px rgba(255,159,67,0.4)}100%{box-shadow:none}}
+.order-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.order-num{font-family:'Oswald',sans-serif;font-size:24px;color:#FF9F43;font-weight:600}
+.order-time{font-size:13px;color:var(--text3)}
+.order-phone{font-size:14px;color:var(--accent);margin-bottom:8px}
+.order-detail{font-size:14px;color:var(--text2);line-height:1.6;white-space:pre-line}
+.order-total{font-family:'Oswald',sans-serif;font-size:22px;color:var(--text1);margin-top:10px;text-align:right}
+.order-actions{margin-top:12px;display:flex;gap:8px}
+.btn-done{flex:1;padding:12px;border:none;border-radius:12px;font-family:'Oswald',sans-serif;font-size:16px;cursor:pointer;transition:all 0.2s}
+.btn-done.primary{background:#00B894;color:#fff}
+.btn-done.primary:active{transform:scale(0.95)}
+.btn-done.disabled{background:rgba(0,184,148,0.15);color:#00B894;pointer-events:none}
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty .icon{font-size:48px;margin-bottom:12px}
+.empty p{font-size:16px}
+.counter{display:flex;justify-content:center;gap:20px;padding:12px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.counter .c-item{text-align:center}
+.counter .c-num{font-family:'Oswald',sans-serif;font-size:28px;font-weight:600}
+.counter .c-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em}
+.c-encours .c-num{color:#FF9F43}
+.c-fait .c-num{color:#00B894}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🍽️ Commandes</h1>
+  <div class="status"><div class="dot"></div>Auto-refresh 5s</div>
+</div>
+<div class="counter">
+  <div class="c-item c-encours"><div class="c-num" id="count-pending">0</div><div class="c-label">En cours</div></div>
+  <div class="c-item c-fait"><div class="c-num" id="count-done">0</div><div class="c-label">Faites</div></div>
+</div>
+<div class="orders" id="orders-list"></div>
+
+<script>
+// ⚠️ REMPLACER PAR L'URL DU SCRIPT DÉPLOYÉ
+const API='https://script.google.com/macros/s/AKfycbzhzkIBU7IaJHNtAHTa82CYN6QOapLAlvx1bBrdncRH-1itZF7-GoOghIho26OHJHld/exec';
+
+let lastCount=0;
+let knownIds=new Set();
+
+function loadOrders(){
+  fetch(API+'?action=list',{method:'GET'})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data.success) return;
+      renderOrders(data.orders);
+    })
+    .catch(function(err){
+      console.log('Erreur chargement',err);
+    });
+}
+
+function renderOrders(orders){
+  const el=document.getElementById('orders-list');
+  
+  const pending=orders.filter(function(o){return o.statut==='EN COURS';});
+  const done=orders.filter(function(o){return o.statut==='FAIT';});
+  
+  document.getElementById('count-pending').textContent=pending.length;
+  document.getElementById('count-done').textContent=done.length;
+  
+  if(orders.length===0){
+    el.innerHTML='<div class="empty"><div class="icon">☕</div><p>Aucune commande aujourd\'hui</p></div>';
+    return;
+  }
+  
+  // Check for new orders to play sound
+  let hasNew=false;
+  orders.forEach(function(o){
+    if(o.statut==='EN COURS' && !knownIds.has(o.id)){
+      hasNew=true;
+    }
+    knownIds.add(o.id);
+  });
+  
+  if(hasNew && lastCount>0){
+    playAlert();
+  }
+  lastCount=orders.length;
+  
+  let html='';
+  // Show pending first, then done
+  var sorted=pending.concat(done);
+  
+  sorted.forEach(function(order){
+    const isDone=order.statut==='FAIT';
+    const isNew=!isDone && order._new;
+    html+='<div class="order-card'+(isDone?' done':'')+(isNew?' new':'')+'">';
+    html+='<div class="order-top">';
+    html+='<div class="order-num">'+order.id+'</div>';
+    html+='<div class="order-time">'+order.heure+'</div>';
+    html+='</div>';
+    if(order.phone) html+='<div class="order-phone">📱 '+order.phone+'</div>';
+    html+='<div class="order-detail">'+order.detail.replace(/\|/g,'\n')+'</div>';
+    html+='<div class="order-total">'+order.total+'</div>';
+    html+='<div class="order-actions">';
+    if(isDone){
+      html+='<button class="btn-done disabled">✓ Fait</button>';
+    } else {
+      html+='<button class="btn-done primary" onclick="markDone('+order.row+',this)">✓ C\'est prêt !</button>';
+    }
+    html+='</div>';
+    html+='</div>';
+  });
+  
+  el.innerHTML=html;
+}
+
+function markDone(row,btn){
+  btn.textContent='...';
+  btn.classList.remove('primary');
+  btn.classList.add('disabled');
+  
+  fetch(API+'?action=done&row='+row,{method:'GET'})
+    .then(function(){
+      setTimeout(loadOrders,500);
+    });
+}
+
+function playAlert(){
+  try{
+    var ctx=new (window.AudioContext||window.webkitAudioContext)();
+    // Play 2 beeps
+    [0,0.2].forEach(function(delay){
+      var osc=ctx.createOscillator();
+      var gain=ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value=880;
+      osc.type='sine';
+      gain.gain.value=0.3;
+      osc.start(ctx.currentTime+delay);
+      osc.stop(ctx.currentTime+delay+0.15);
+    });
+  }catch(e){}
+}
+
+// Auto-refresh every 5 seconds
+loadOrders();
+setInterval(loadOrders,5000);
+</script>
+</body>
+</html>
