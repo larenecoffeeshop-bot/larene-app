@@ -215,12 +215,17 @@ function showNextPopup(){
   
   var popDetail=order.detail;
   var popName='';
-  if(popDetail.indexOf('👤')>=0){
-    var np=popDetail.split('|');
-    popName=np[0].replace('👤','').trim();
-    popDetail=np.slice(1).join('|');
-  }
-  var phoneText=(popName?'👤 '+popName:'')+(order.phone?(popName?' — ':'')+'📱 '+formatPhone(order.phone):'');
+  var popMode='';
+  var pp=popDetail.split('|');
+  var cleanPP=[];
+  pp.forEach(function(p){
+    p=p.trim();
+    if(p==='SUR PLACE'||p==='À EMPORTER') popMode=p;
+    else if(p.indexOf('👤')>=0) popName=p.replace('👤','').trim();
+    else cleanPP.push(p);
+  });
+  popDetail=cleanPP.join('|');
+  var phoneText=(popMode?(popMode==='SUR PLACE'?'🪑 ':'🥡 ')+popMode+'  ':'')+(popName?'👤 '+popName:'')+(order.phone?((popName||popMode)?' — ':'')+'📱 '+formatPhone(order.phone):'');
   document.getElementById('popup-phone').textContent=phoneText;
   
   var detailHtml='';
