@@ -71,11 +71,11 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--text1);mi
 </head>
 <body>
 <!-- SOUND ACTIVATION OVERLAY -->
-<div id="sound-overlay" onclick="activateSound()" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer">
+<div id="sound-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer">
   <div style="font-size:72px;margin-bottom:20px">🔔</div>
   <div style="font-family:Oswald,sans-serif;font-size:28px;color:#fff;margin-bottom:10px;letter-spacing:0.05em">ACTIVER LES NOTIFICATIONS</div>
   <div style="font-size:16px;color:#b0b0c0;margin-bottom:30px">Touche l'écran pour activer le son</div>
-  <div style="padding:18px 40px;background:linear-gradient(135deg,#FF9F43,#FF6347);border-radius:16px;font-family:Oswald,sans-serif;font-size:22px;color:#fff;letter-spacing:0.05em">🔊 ACTIVER</div>
+  <div id="activate-btn" style="padding:18px 40px;background:linear-gradient(135deg,#FF9F43,#FF6347);border-radius:16px;font-family:Oswald,sans-serif;font-size:22px;color:#fff;letter-spacing:0.05em">🔊 ACTIVER</div>
 </div>
 
 <div class="header">
@@ -257,6 +257,26 @@ function playAlert(){
 
 loadOrders();
 setInterval(loadOrders,5000);
+
+// Sound activation - must be after DOM is ready
+document.getElementById('sound-overlay').addEventListener('click',function(){
+  try{
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var o=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    o.frequency.value=440;
+    o.type='sine';
+    g.gain.value=0.3;
+    o.start();
+    o.stop(audioCtx.currentTime+0.15);
+    soundActivated=true;
+  }catch(e){
+    alert('Erreur son: '+e);
+  }
+  this.style.display='none';
+});
 </script>
 </body>
 </html>
