@@ -270,26 +270,29 @@ function reset(){
   phone='';state='input';window._loyaltyData=null;render();
 }
 
+function jsonp(url,cb){
+  var n='jp_'+Date.now()+'_'+Math.floor(Math.random()*99999);
+  window[n]=function(d){delete window[n];var s=document.getElementById(n);if(s)s.remove();cb(d);};
+  var s=document.createElement('script');s.id=n;
+  s.src=url+(url.indexOf('?')>=0?'&':'?')+'callback='+n;
+  s.onerror=function(){delete window[n];s.remove();cb(null);};
+  document.body.appendChild(s);
+}
+
 function submit(){
   if(phone.length<10) return;
   state='loading';
   render();
   
-  fetch(API+'?action=check&phone='+encodeURIComponent(phone),{method:'GET'})
-    .then(function(r){return r.json();})
-    .then(function(data){
-      if(data.success){
-        window._loyaltyData=data;
-        state='result';
-      } else {
-        state='error';
-      }
-      render();
-    })
-    .catch(function(){
+  jsonp(API+'?action=check&phone='+encodeURIComponent(phone),function(data){
+    if(data && data.success){
+      window._loyaltyData=data;
+      state='result';
+    } else {
       state='error';
-      render();
-    });
+    }
+    render();
+  });
 }
 
 // Check URL params for pre-filled phone
